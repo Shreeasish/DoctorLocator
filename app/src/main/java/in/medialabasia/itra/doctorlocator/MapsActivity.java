@@ -9,6 +9,9 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.widget.Toast;
 
+import com.akexorcist.googledirection.DirectionCallback;
+import com.akexorcist.googledirection.GoogleDirection;
+import com.akexorcist.googledirection.model.Direction;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
@@ -27,7 +30,8 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 public class MapsActivity extends FragmentActivity
         implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener, LocationListener{
+        GoogleApiClient.OnConnectionFailedListener, LocationListener,
+        GoogleMap.OnMarkerClickListener{
 
     private GoogleMap mMap;
     private GoogleApiClient mGoogleApiClient;
@@ -91,7 +95,9 @@ public class MapsActivity extends FragmentActivity
         // Add a marker in Sydney and move the camera
         LatLng sydney = new LatLng(20.353586, 85.819931);
         mMap.addMarker(new MarkerOptions().position(sydney).title("My Marker"));
+
 //        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        mMap.setOnMarkerClickListener(this);
     }
 
     @Override
@@ -165,10 +171,39 @@ public class MapsActivity extends FragmentActivity
         currLocationMarker = mMap.addMarker(markerOptions);
 
         Toast.makeText(this,"Location Changed",Toast.LENGTH_SHORT).show();
-
         //zoom to current position:
         //If you only need one location, unregister the listener
         //LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
 
+    }
+
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+
+        if(!marker.equals(currLocationMarker))
+        {
+//            String text = marker.getPosition().toString();
+//            Toast toast = Toast.makeText(getBaseContext(), text, Toast.LENGTH_LONG);
+//            toast.show();
+
+            GoogleDirection.withServerKey(getString(R.string.server_key))
+                    .from(currLocationMarker.getPosition())
+                    .to(marker.getPosition())
+                    .execute(new DirectionCallback() {
+                        @Override
+                        public void onDirectionSuccess(Direction direction, String rawBody) {
+                            Toast toast = Toast.makeText(getBaseContext(), "Directions Retrieved", Toast.LENGTH_LONG);
+                            
+                        }
+
+                        @Override
+                        public void onDirectionFailure(Throwable t) {
+                            t.printStackTrace();
+                            Toast toast = Toast.makeText(getBaseContext(), "Directions Failed", Toast.LENGTH_LONG);
+                        }
+                    });
+
+        }
+        return false;
     }
 }

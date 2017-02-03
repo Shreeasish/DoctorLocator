@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Doctor Locator</string>
     <string name="title_activity_maps">Map</string>
+    <string name="server_key">AIzaSyAfD3V3q_UTahoCgWIlguENiaBv7iWhk9s</string>
 </resources>
