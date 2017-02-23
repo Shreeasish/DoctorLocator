@@ -8,6 +8,7 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.akexorcist.googledirection.DirectionCallback;
@@ -16,6 +17,13 @@ import com.akexorcist.googledirection.model.Direction;
 import com.akexorcist.googledirection.model.Leg;
 import com.akexorcist.googledirection.model.Route;
 import com.akexorcist.googledirection.util.DirectionConverter;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
@@ -30,9 +38,17 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.gson.JsonObject;
+
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.List;
 
 
 public class MapsActivity extends FragmentActivity
@@ -46,6 +62,7 @@ public class MapsActivity extends FragmentActivity
     private LatLng latLng;
     private Marker currLocationMarker;
     private LocationRequest mLocationRequest;
+    private List<Polyline> polyLineList;
 
 
     @Override
@@ -69,13 +86,13 @@ public class MapsActivity extends FragmentActivity
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+
         if (mGoogleApiClient == null) {
             mGoogleApiClient = new GoogleApiClient.Builder(this)
                     .addConnectionCallbacks(this)
                     .addOnConnectionFailedListener(this)
                     .addApi(LocationServices.API)
                     .build();
-
         }
     }
 
@@ -97,15 +114,63 @@ public class MapsActivity extends FragmentActivity
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.getUiSettings().setMyLocationButtonEnabled(true);
 
         mGoogleApiClient.connect();
-        // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(20.353586, 85.819931);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("My Marker"));
 
-//        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        getAllResources();
+        //Add a marker in Sydney and move the camera
+        //mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
         mMap.setOnMarkerClickListener(this);
     }
+
+
+
+    private void getAllResources()
+    {
+
+
+        String url = "http://192.168.43.245:3000/data/getAllResources";
+
+        JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(Request.Method.GET, url, null, new Response.Listener<JSONArray>() {
+            @Override
+            public void onResponse(JSONArray List) {
+                try {
+
+//                    JSONArray locationList = response.getJSONArray("location");
+//
+                    for(int i =0; i<List.length(); i++)
+                    {
+                        JSONObject resource = List.getJSONObject(i);
+                        String[] location = resource.get("location").toString().split(",");
+                        double lat = Double.parseDouble(location[0]);
+                        double lng = Double.parseDouble(location[1]);
+                        addMarker(new LatLng(lat,lng),resource.getString("name"));
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+            }
+        },new Response.ErrorListener(){
+            public void onErrorResponse(VolleyError error)
+            {
+                Log.d("MESSAGE"," Volley error " + error.toString());
+            }
+        });
+
+        RequestQueue requestQueue = Volley.newRequestQueue(this);
+        requestQueue.add(jsonArrayRequest);
+
+
+    }
+
+    private void addMarker(LatLng latLng, String name)
+    {
+        mMap.addMarker(new MarkerOptions().position(latLng).title(name));
+    }
+
+
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
@@ -164,9 +229,9 @@ public class MapsActivity extends FragmentActivity
 
     }
 
+
     @Override
     public void onLocationChanged(Location location) {
-
         if (currLocationMarker != null) {
             currLocationMarker.remove();
         }
@@ -181,6 +246,7 @@ public class MapsActivity extends FragmentActivity
         //zoom to current position:
         //If you only need one location, unregister the listener
         //LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+
 
     }
 
@@ -204,7 +270,23 @@ public class MapsActivity extends FragmentActivity
                             Leg leg  = route.getLegList().get(0);
                             ArrayList<LatLng> directionPositionList = leg.getDirectionPoint();
                             PolylineOptions polylineOptions = DirectionConverter.createPolyline(getApplicationContext(), directionPositionList, 5, Color.RED);
-                            mMap.addPolyline(polylineOptions);
+
+
+                            if(polyLineList!=null && !polyLineList.isEmpty())
+                            {
+                                for (Polyline line:polyLineList)
+                                {
+                                    line.remove();
+                                }
+                            }
+                            else
+                            {
+                                polyLineList = new ArrayList<Polyline>();
+                            }
+
+//                            mMap.addPolyline(polylineOptions);
+
+                            polyLineList.add(mMap.addPolyline(polylineOptions));
                         }
 
                         @Override
