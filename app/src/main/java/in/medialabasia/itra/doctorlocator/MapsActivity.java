@@ -9,6 +9,9 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.akexorcist.googledirection.DirectionCallback;
@@ -48,13 +51,16 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 
 public class MapsActivity extends FragmentActivity
         implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, LocationListener,
-        GoogleMap.OnMarkerClickListener{
+        GoogleMap.OnMarkerClickListener {
 
     private GoogleMap mMap;
     private GoogleApiClient mGoogleApiClient;
@@ -63,6 +69,8 @@ public class MapsActivity extends FragmentActivity
     private Marker currLocationMarker;
     private LocationRequest mLocationRequest;
     private List<Polyline> polyLineList;
+    private Map<Marker, MarkerData> markerDataMap;
+    private boolean noFilters = false;
 
 
     @Override
@@ -117,40 +125,54 @@ public class MapsActivity extends FragmentActivity
         mMap.getUiSettings().setMyLocationButtonEnabled(true);
 
         mGoogleApiClient.connect();
-
         getAllResources();
         //Add a marker in Sydney and move the camera
         //mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
         mMap.setOnMarkerClickListener(this);
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        mMap.setMyLocationEnabled(true);
     }
 
 
 
     private void getAllResources()
     {
-
-
-        String url = "http://192.168.43.245:3000/data/getAllResources";
+        String url = "http://192.168.43.245:3000/test";
 
         JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(Request.Method.GET, url, null, new Response.Listener<JSONArray>() {
             @Override
             public void onResponse(JSONArray List) {
                 try {
-
+                    markerDataMap = new HashMap<>();
 //                    JSONArray locationList = response.getJSONArray("location");
-//
                     for(int i =0; i<List.length(); i++)
                     {
                         JSONObject resource = List.getJSONObject(i);
                         String[] location = resource.get("location").toString().split(",");
                         double lat = Double.parseDouble(location[0]);
                         double lng = Double.parseDouble(location[1]);
-                        addMarker(new LatLng(lat,lng),resource.getString("name"));
+                        MarkerData markerData
+                                = new MarkerData(resource.getString("name"),
+                                resource.getString("specialization"),
+                                resource.getString("email"),
+                                resource.getString("phoneNumber"),
+                                resource.getString("beds")
+                        );
+
+                        markerDataMap.put(addMarker(new LatLng(lat,lng),resource.getString("name")),markerData);
                     }
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
-
             }
         },new Response.ErrorListener(){
             public void onErrorResponse(VolleyError error)
@@ -165,9 +187,15 @@ public class MapsActivity extends FragmentActivity
 
     }
 
-    private void addMarker(LatLng latLng, String name)
+    private Marker addMarker(LatLng latLng, String name)
     {
-        mMap.addMarker(new MarkerOptions().position(latLng).title(name));
+        return mMap.addMarker(new MarkerOptions()
+                .position(latLng)
+                .title(name)
+//                .icon(BitmapDescriptorFactory
+//                        .fromResource(R.drawable.ic_local_hospital_black_24dp)
+//                )
+        );
     }
 
 
@@ -195,11 +223,11 @@ public class MapsActivity extends FragmentActivity
         if(mLastLocation != null)
         {
             latLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-            MarkerOptions markerOptions = new MarkerOptions();
-            markerOptions.position(latLng);
-            markerOptions.title("Current Position");
-            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
-            currLocationMarker = mMap.addMarker(markerOptions);
+//            MarkerOptions markerOptions = new MarkerOptions();
+//            markerOptions.position(latLng);
+//            markerOptions.title("Current Position");
+//            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
+//            currLocationMarker = mMap.addMarker(markerOptions);
 
 
             CameraPosition cameraPosition = new CameraPosition.Builder()
@@ -232,17 +260,17 @@ public class MapsActivity extends FragmentActivity
 
     @Override
     public void onLocationChanged(Location location) {
-        if (currLocationMarker != null) {
-            currLocationMarker.remove();
-        }
-        latLng = new LatLng(location.getLatitude(), location.getLongitude());
-        MarkerOptions markerOptions = new MarkerOptions();
-        markerOptions.position(latLng);
-        markerOptions.title("Current Position");
-        markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
-        currLocationMarker = mMap.addMarker(markerOptions);
-
-        Toast.makeText(this,"Location Changed",Toast.LENGTH_SHORT).show();
+//        if (currLocationMarker != null) {
+//            currLocationMarker.remove();
+//        }
+//        latLng = new LatLng(location.getLatitude(), location.getLongitude());
+//        MarkerOptions markerOptions = new MarkerOptions();
+//        markerOptions.position(latLng);
+//        markerOptions.title("Current Position");
+//        markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
+//        currLocationMarker = mMap.addMarker(markerOptions);
+//
+//        Toast.makeText(this,"Location Changed",Toast.LENGTH_SHORT).show();
         //zoom to current position:
         //If you only need one location, unregister the listener
         //LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
@@ -271,7 +299,6 @@ public class MapsActivity extends FragmentActivity
                             ArrayList<LatLng> directionPositionList = leg.getDirectionPoint();
                             PolylineOptions polylineOptions = DirectionConverter.createPolyline(getApplicationContext(), directionPositionList, 5, Color.RED);
 
-
                             if(polyLineList!=null && !polyLineList.isEmpty())
                             {
                                 for (Polyline line:polyLineList)
@@ -299,4 +326,47 @@ public class MapsActivity extends FragmentActivity
         }
         return false;
     }
+
+    public void ApplyFilters(View view) {
+        {
+            LinearLayout filterContainer = (LinearLayout) findViewById(R.id.filters);
+            ArrayList<String> filterList = new ArrayList<>(10);
+            boolean noneChecked = true;
+            for(int i =0;i<filterContainer.getChildCount();i++)
+            {
+                CheckBox checkBox =(CheckBox)filterContainer.getChildAt(i);
+                if(checkBox.isChecked())
+                {
+                    filterList.add(checkBox.getText().toString());
+                    noneChecked = false;
+                }
+            }
+
+            if(!noneChecked) {
+                for (Map.Entry<Marker,MarkerData> entry: markerDataMap.entrySet())
+                    {
+                        Marker marker = entry.getKey();
+
+                        boolean flag = false;
+                        for (String string : filterList)
+                        {
+                            if(flag = flag||entry.getValue().getSpecialization().equals(string));
+                            {
+                                marker.setVisible(true);
+                            }
+                        }
+                        if(!flag)
+                        {
+                            entry.getKey().setVisible(false);
+                        }
+                    }
+            }
+            else
+                for (Map.Entry<Marker,MarkerData> entry: markerDataMap.entrySet())
+                {
+                    entry.getKey().setVisible(true);
+                }
+        }
+    }
+
 }
